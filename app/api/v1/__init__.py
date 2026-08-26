@@ -1,0 +1,7 @@
+from fastapi import APIRouter
+from app.api.v1.documents import router as documents_router
+from app.api.v1.tasks import router as tasks_router
+
+api_router = APIRouter()
+api_router.include_router(documents_router, prefix="/documents", tags=["documents"])
+api_router.include_router(tasks_router, prefix="/tasks", tags=["tasks"])
