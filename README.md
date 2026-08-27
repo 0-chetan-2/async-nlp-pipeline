@@ -1,42 +1,112 @@
-# Asynchronous NLP Document Processing Pipeline
+# Async NLP Pipeline
 
-An asynchronous document processing API built with FastAPI, PostgreSQL, Redis, and Celery.
+An asynchronous document processing pipeline built with FastAPI, PostgreSQL, Redis, Celery, and lightweight NLP techniques.
 
-The system is designed to accept documents through a REST API, create asynchronous processing tasks, process documents in background workers, and return NLP-generated summaries.
-
-> **Current Status:** Phase 1 — Project Foundation Complete
+The system accepts documents through an API, stores them locally, creates a processing task, places the task on a Redis-backed Celery queue, and asynchronously processes the document using an NLP pipeline.
 
 ---
 
-## Project Overview
+## Project Status
 
-The goal of this project is to build a production-oriented asynchronous NLP document processing pipeline.
+### Completed
 
-Instead of performing expensive document processing directly inside an API request, the system will use a background task queue:
+- [x] Project foundation
+- [x] Environment configuration
+- [x] FastAPI application
+- [x] PostgreSQL integration
+- [x] Redis integration
+- [x] Docker-based PostgreSQL and Redis
+- [x] SQLAlchemy models
+- [x] Alembic migrations
+- [x] Task and result database schema
+- [x] Task status management
+- [x] Document upload API
+- [x] File validation
+- [x] Local file storage
+- [x] Celery worker
+- [x] Redis task queue
+- [x] Asynchronous document processing
+- [x] Failure handling
+- [x] TXT text extraction
+- [x] PDF text extraction
+- [x] Text cleaning
+- [x] Text chunking
+- [x] Extractive summarization
+- [x] NLP statistics
+- [x] Long-document processing
+
+### Current Phase
+
+**Phase 5 — NLP Processing: COMPLETE**
+
+### Next Phase
+
+**Phase 6 — Result Persistence and Idempotency**
+
+---
+
+# Architecture
 
 ```text
-Client
-   │
-   ▼
-FastAPI
-   │
-   ▼
-Create Task
-   │
-   ▼
-Redis
-   │
-   ▼
-Celery Worker
-   │
-   ▼
-Document Processing
-   │
-   ▼
-NLP Summarization
-   │
-   ▼
-PostgreSQL
-   │
-   ▼
-Task Result
+                         Client
+                           |
+                           | HTTP
+                           v
+                    +--------------+
+                    |   FastAPI    |
+                    +------+-------+
+                           |
+                           | Upload
+                           v
+                    +--------------+
+                    | File Storage |
+                    +------+-------+
+                           |
+                           v
+                    +--------------+
+                    | PostgreSQL   |
+                    |    PENDING   |
+                    +------+-------+
+                           |
+                           | Celery task
+                           v
+                    +--------------+
+                    |    Redis     |
+                    |    Queue     |
+                    +------+-------+
+                           |
+                           v
+                    +--------------+
+                    |    Celery    |
+                    |    Worker    |
+                    +------+-------+
+                           |
+                           | PROCESSING
+                           v
+                    +--------------+
+                    |  NLPService  |
+                    +------+-------+
+                           |
+             +-------------+-------------+
+             |             |             |
+             v             v             v
+        Extraction      Cleaning      Chunking
+             |             |             |
+             +-------------+-------------+
+                           |
+                           v
+                    +--------------+
+                    |   LexRank    |
+                    | Summarization|
+                    +------+-------+
+                           |
+                           v
+                    +--------------+
+                    | NLP Results  |
+                    +------+-------+
+                           |
+                           v
+                    +--------------+
+                    | PostgreSQL   |
+                    |   SUCCESS    |
+                    +--------------+

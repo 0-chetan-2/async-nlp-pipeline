@@ -1,13 +1,39 @@
+# ==============================
+# Web API
+# ==============================
+
 fastapi
 uvicorn[standard]
-sqlalchemy
-asyncpg
-alembic
+python-multipart
+
+# ==============================
+# Configuration
+# ==============================
+
 pydantic
 pydantic-settings
-redis
-celery
-python-multipart
-pymupdf
-sumy
+
+# ==============================
+# Database
+# ==============================
+
+SQLAlchemy
+asyncpg
 psycopg[binary]
+alembic
+
+# ==============================
+# Async Task Processing
+# ==============================
+
+celery
+redis
+
+# ==============================
+# NLP / Document Processing
+# ==============================
+
+pypdf
+sumy
+nltk
+numpy

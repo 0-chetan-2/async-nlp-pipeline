@@ -1,14 +1,92 @@
+# ==============================
+# Python
+# ==============================
+
 __pycache__/
-*.pyc
-.env
+*.py[cod]
+*$py.class
+
+# Virtual environments
 .venv/
 venv/
-uploads/*
-!uploads/.gitkeep
-.pytest_cache/
-.idea/
+env/
+ENV/
+
+# Conda
+.conda/
+
+# ==============================
+# Environment / Secrets
+# ==============================
+
+.env
+.env.*
+!.env.example
+
+# ==============================
+# IDE / Editors
+# ==============================
+
 .vscode/
+.idea/
+*.swp
+*.swo
+
+# ==============================
+# OS
+# ==============================
+
+.DS_Store
+Thumbs.db
+
+# ==============================
+# Testing / Coverage
+# ==============================
+
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# ==============================
+# Application data
+# ==============================
+
+uploads/
 *.log
-postgres_data/
-redis_data/
-*.py[cod]
+
+# ==============================
+# NLP / ML generated files
+# ==============================
+
+nltk_data/
+models/
+checkpoints/
+
+# ==============================
+# Temporary files
+# ==============================
+
+*.tmp
+*.temp
+
+# ==============================
+# Jupyter
+# ==============================
+
+.ipynb_checkpoints/
+
+# ==============================
+# Build / Distribution
+# ==============================
+
+build/
+dist/
+*.egg-info/
+
+# ==============================
+# Docker
+# ==============================
+
+docker-data/
