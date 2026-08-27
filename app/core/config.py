@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     api_key: str
 
     upload_dir: str = "uploads"
-    max_file_size: int = 50 * 1024 * 1024
+    max_file_size: int = 10 * 1024 * 1024
 
     model_config = SettingsConfigDict(
         env_file=".env",

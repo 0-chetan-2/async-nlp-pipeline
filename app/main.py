@@ -1,16 +1,21 @@
-from fastapi import FastAPI
-
-from app.core.config import settings
+from fastapi import Depends, FastAPI
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import Depends
 
+from app.api.v1 import api_router
+from app.core.config import settings
 from app.core.database import get_db
 
 
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
+)
+
+
+app.include_router(
+    api_router,
+    prefix="/api/v1",
 )
 
 
@@ -27,7 +32,8 @@ async def health():
     return {
         "status": "healthy",
     }
-    
+
+
 @app.get("/health/db")
 async def database_health(
     db: AsyncSession = Depends(get_db),
@@ -35,5 +41,5 @@ async def database_health(
     result = await db.execute(text("SELECT 1"))
 
     return {
-        "database": result.scalar()
+        "database": result.scalar(),
     }

@@ -1,55 +1,49 @@
-import os
-import uuid
-from typing import List
-from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks, status
-from app.core.config import settings
-from app.schemas import DocumentResponse, TaskResponse
-from app.workers import process_nlp_document
+from fastapi import APIRouter, Depends, File, UploadFile, status, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
+from pathlib import Path
+from app.core.database import get_db
+from app.schemas.document import DocumentUploadResponse
+from app.services.file_storage import save_file
+from app.services.file_validator import validate_file
+from app.services.task_service import create_task
 
-router = APIRouter()
+
+router = APIRouter(
+    prefix="/documents",
+    tags=["Documents"],
+)
 
 
-@router.post("/upload", response_model=TaskResponse, status_code=status.HTTP_202_ACCEPTED)
-async def upload_document(file: UploadFile = File(...)):
-    """
-    Upload a document file to trigger an asynchronous NLP pipeline processing task.
-    """
-    if not file.filename:
-        raise HTTPException(status_code=400, detail="No file provided")
-
-    file_id = str(uuid.uuid4())
-    file_ext = os.path.splitext(file.filename)[1]
-    saved_filename = f"{file_id}{file_ext}"
-    os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
-    file_path = os.path.join(settings.UPLOAD_DIR, saved_filename)
+@router.post(
+    "",
+    response_model=DocumentUploadResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def upload_document(
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+):
+    await validate_file(file)
 
     content = await file.read()
-    with open(file_path, "wb") as f:
-        f.write(content)
+    file_size = len(content)
 
-    # Trigger async Celery task
-    task = process_nlp_document.delay(file_path, file.filename)
+    await file.seek(0)
 
-    return TaskResponse(
-        task_id=task.id,
-        status="PENDING",
-        message="Document uploaded and queued for async NLP processing."
+    file_path = await save_file(file)
+
+    try:
+        task = await create_task(
+                db=db,
+                filename=file.filename,
+                mime_type=file.content_type,
+                file_size=file_size,
+                file_path=file_path,
+            )
+    except Exception:
+        Path(file_path).unlink(missing_ok=True)
+        raise
+
+    return DocumentUploadResponse(
+        task_id=task.task_id
     )
-
-
-@router.get("/", response_model=List[DocumentResponse])
-async def list_documents():
-    """
-    List uploaded documents and metadata.
-    """
-    os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
-    files = os.listdir(settings.UPLOAD_DIR)
-    docs = []
-    for f in files:
-        if f != ".gitkeep":
-            docs.append(DocumentResponse(
-                filename=f,
-                file_path=os.path.join(settings.UPLOAD_DIR, f),
-                status="STORED"
-            ))
-    return docs
