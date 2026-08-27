@@ -6,7 +6,7 @@ from app.schemas.document import DocumentUploadResponse
 from app.services.file_storage import save_file
 from app.services.file_validator import validate_file
 from app.services.task_service import create_task
-
+from app.workers.tasks import process_document_task
 
 router = APIRouter(
     prefix="/documents",
@@ -40,6 +40,10 @@ async def upload_document(
                 file_size=file_size,
                 file_path=file_path,
             )
+        process_document_task.delay(
+            str(task.task_id),
+            file_path,
+        )
     except Exception:
         Path(file_path).unlink(missing_ok=True)
         raise
