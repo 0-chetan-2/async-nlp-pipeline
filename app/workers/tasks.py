@@ -2,6 +2,7 @@ import os
 from uuid import UUID
 
 from app.models import TaskStatus
+from app.services.nlp.service import NLPService
 from app.workers import celery_app
 from app.workers.task_service import update_task_status
 
@@ -18,19 +19,20 @@ def process_document_task(
     """
     Process an uploaded document asynchronously.
 
-    Phase 4:
+    Phase 5:
     - PENDING → PROCESSING
-    - Verify file exists
+    - Extract document text
+    - Clean text
+    - Chunk text
+    - Generate summary
+    - Calculate NLP statistics
     - PROCESSING → SUCCESS
     - Record failures as FAILED
-
-    Actual NLP processing comes in Phase 5.
     """
 
     task_uuid = UUID(task_id)
 
     try:
-
         # PENDING → PROCESSING
         update_task_status(
             task_id=task_uuid,
@@ -45,12 +47,19 @@ def process_document_task(
                 f"File not found: {file_path}"
             )
 
-        file_size = os.path.getsize(file_path)
+        # Run NLP pipeline
+        result = NLPService.process_document(
+            file_path
+        )
 
         print(
-            f"Task {task_id}: "
-            f"file exists, size={file_size} bytes"
+            f"NLP processing completed for task "
+            f"{task_id}"
         )
+
+        print(f"Chunk count: {result['chunk_count']}")
+        print(f"Word count: {result['word_count']}")
+        print(f"Sentence count: {result['sentence_count']}")
 
         # PROCESSING → SUCCESS
         update_task_status(
@@ -60,8 +69,7 @@ def process_document_task(
 
         return {
             "task_id": task_id,
-            "status": "processed",
-            "file_size": file_size,
+            **result,
         }
 
     except Exception as exc:
