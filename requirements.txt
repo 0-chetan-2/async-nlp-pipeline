@@ -10,3 +10,4 @@ celery
 python-multipart
 pymupdf
 sumy
+psycopg[binary]

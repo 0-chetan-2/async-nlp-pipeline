@@ -1,37 +1,77 @@
 import os
+from uuid import UUID
 
+from app.models import TaskStatus
 from app.workers import celery_app
+from app.workers.task_service import update_task_status
 
 
-@celery_app.task(name="process_document_task")
+@celery_app.task(
+    name="process_document_task",
+    bind=True,
+)
 def process_document_task(
+    self,
     task_id: str,
     file_path: str,
 ):
     """
-    Phase 4:
-    Verify that the uploaded document can be processed asynchronously.
+    Process an uploaded document asynchronously.
 
-    Actual NLP processing will be added in Phase 5.
+    Phase 4:
+    - PENDING → PROCESSING
+    - Verify file exists
+    - PROCESSING → SUCCESS
+    - Record failures as FAILED
+
+    Actual NLP processing comes in Phase 5.
     """
 
-    print(f"Processing task: {task_id}")
-    print(f"File path: {file_path}")
+    task_uuid = UUID(task_id)
 
-    if not os.path.exists(file_path):
-        raise FileNotFoundError(
-            f"File not found: {file_path}"
+    try:
+
+        # PENDING → PROCESSING
+        update_task_status(
+            task_id=task_uuid,
+            status=TaskStatus.PROCESSING,
         )
 
-    file_size = os.path.getsize(file_path)
+        print(f"Processing task: {task_id}")
+        print(f"File path: {file_path}")
 
-    print(
-        f"Task {task_id}: "
-        f"file exists, size={file_size} bytes"
-    )
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(
+                f"File not found: {file_path}"
+            )
 
-    return {
-        "task_id": task_id,
-        "status": "processed",
-        "file_size": file_size,
-    }
+        file_size = os.path.getsize(file_path)
+
+        print(
+            f"Task {task_id}: "
+            f"file exists, size={file_size} bytes"
+        )
+
+        # PROCESSING → SUCCESS
+        update_task_status(
+            task_id=task_uuid,
+            status=TaskStatus.SUCCESS,
+        )
+
+        return {
+            "task_id": task_id,
+            "status": "processed",
+            "file_size": file_size,
+        }
+
+    except Exception as exc:
+
+        # PROCESSING → FAILED
+        update_task_status(
+            task_id=task_uuid,
+            status=TaskStatus.FAILED,
+            error_code=type(exc).__name__,
+            error_message=str(exc),
+        )
+
+        raise
