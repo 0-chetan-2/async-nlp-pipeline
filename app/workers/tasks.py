@@ -5,6 +5,7 @@ from app.models import TaskStatus
 from app.services.nlp.service import NLPService
 from app.workers import celery_app
 from app.workers.task_service import update_task_status
+from app.services.result_service import save_result
 
 
 @celery_app.task(
@@ -60,6 +61,13 @@ def process_document_task(
         print(f"Chunk count: {result['chunk_count']}")
         print(f"Word count: {result['word_count']}")
         print(f"Sentence count: {result['sentence_count']}")
+
+        # Persist NLP result
+        save_result(
+            task_id=task_uuid,
+            summary=result["summary"],
+            chunk_count=result["chunk_count"],
+        )
 
         # PROCESSING → SUCCESS
         update_task_status(
