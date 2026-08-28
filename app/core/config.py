@@ -6,9 +6,9 @@ class Settings(BaseSettings):
     app_version: str = "1.0.0"
 
     database_url: str
-    redis_url: str
 
-    api_key: str
+    redis_url: str | None = None
+    api_key: str | None = None
 
     upload_dir: str = "uploads"
     max_file_size: int = 10 * 1024 * 1024

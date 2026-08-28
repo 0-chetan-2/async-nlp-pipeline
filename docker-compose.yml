@@ -3,23 +3,153 @@ services:
   postgres:
     image: postgres:16
     container_name: nlp-postgres
+
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: nlp_pipeline
-    ports:
-      - "5433:5432"
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+
     volumes:
       - postgres_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
 
   redis:
     image: redis:7
     container_name: nlp-redis
-    ports:
-      - "6379:6379"
+
     volumes:
       - redis_data:/data
+
+    healthcheck:
+      test:
+        ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+
+  migration:
+    build:
+      context: .
+
+    container_name: nlp-migration
+
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    command:
+      [
+        "python",
+        "-m",
+        "alembic",
+        "upgrade",
+        "head"
+      ]
+
+
+  api:
+    build:
+      context: .
+
+    container_name: nlp-api
+
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_URL: redis://redis:6379/0
+      API_KEY: ${API_KEY}
+      UPLOAD_DIR: /app/uploads
+      MAX_FILE_SIZE: ${MAX_FILE_SIZE}
+
+    ports:
+      - "8000:8000"
+
+    volumes:
+      - uploads_data:/app/uploads
+
+    depends_on:
+      migration:
+        condition: service_completed_successfully
+
+      postgres:
+        condition: service_healthy
+
+      redis:
+        condition: service_healthy
+
+    command:
+      [
+        "uvicorn",
+        "app.main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000"
+      ]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-f",
+          "http://localhost:8000/health"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+
+  worker:
+    build:
+      context: .
+
+    container_name: nlp-worker
+
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_URL: redis://redis:6379/0
+      API_KEY: ${API_KEY}
+      UPLOAD_DIR: /app/uploads
+      MAX_FILE_SIZE: ${MAX_FILE_SIZE}
+
+    volumes:
+      - uploads_data:/app/uploads
+
+    depends_on:
+      migration:
+        condition: service_completed_successfully
+
+      postgres:
+        condition: service_healthy
+
+      redis:
+        condition: service_healthy
+
+    command:
+      [
+        "celery",
+        "-A",
+        "app.workers",
+        "worker",
+        "--loglevel=info"
+      ]
+
 
 volumes:
   postgres_data:
   redis_data:
+  uploads_data:
