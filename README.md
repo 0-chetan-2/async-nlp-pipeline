@@ -1,18 +1,21 @@
-Async NLP Document Processing Platform
+# Async NLP Document Processing Platform
 
-An asynchronous, containerized document-processing platform built with FastAPI, Celery, Redis, PostgreSQL, Docker, and NLP tooling.
+An asynchronous, containerized document-processing platform built with **FastAPI, Celery, Redis, PostgreSQL, Docker, and NLP tooling**.
 
 The system accepts PDF/TXT documents through an API, creates a persistent processing task, queues the NLP workload through Redis, executes it in a Celery worker, and stores the resulting NLP output in PostgreSQL.
 
-Project status: Backend MVP completed.
-Next development phase: Improving the NLP pipeline, summary quality, and evaluation.
+> **Project status:** Backend MVP completed.  
+> **Next development phase:** Improving the NLP pipeline, summary quality, and evaluation.
 
-Overview
+---
+
+## Overview
 
 The platform is designed to process documents without making the API request wait for the full NLP workload.
 
-Processing architecture
+### Processing architecture
 
+```text
 Client
   |
   v
@@ -33,9 +36,11 @@ PostgreSQL            Redis
                          v
                     PostgreSQL
                        (Result)
+```
 
-Task lifecycle
+### Task lifecycle
 
+```text
 Upload Document
       |
       v
@@ -54,61 +59,50 @@ PROCESSING
       |                  |
       v                  v
    SUCCESS             FAILED
+```
 
-The key architectural decision is to separate request handling from long-running NLP execution.
+The key architectural decision is to separate **request handling** from **long-running NLP execution**.
 
-Key Features
+---
 
-Asynchronous processing
+## Key Features
 
-PDF/TXT document upload
+### Asynchronous processing
 
-Background processing with Celery
+- PDF/TXT document upload
+- Background processing with Celery
+- Redis-backed task queue
+- Non-blocking API workflow
+- PostgreSQL-backed task state
+- Persisted NLP results
 
-Redis-backed task queue
+### Reliability
 
-Non-blocking API workflow
+- Retry handling for transient connection and timeout failures
+- Exponential retry backoff
+- Idempotent task execution
+- One persisted result per task
+- Centralized application error classification
+- Processing time limits
+- Transaction-safe result persistence
 
-PostgreSQL-backed task state
+### Infrastructure
 
-Persisted NLP results
+- Dockerized application stack
+- Docker Compose orchestration
+- Dedicated database migration service
+- PostgreSQL health checks
+- Redis health checks
+- API health endpoints
+- Alembic migrations
 
-Reliability
+---
 
-Retry handling for transient connection and timeout failures
+## NLP Pipeline
 
-Exponential retry backoff
+The current NLP implementation is an **extractive summarization pipeline using LexRank**.
 
-Idempotent task execution
-
-One persisted result per task
-
-Centralized application error classification
-
-Processing time limits
-
-Transaction-safe result persistence
-
-Infrastructure
-
-Dockerized application stack
-
-Docker Compose orchestration
-
-Dedicated database migration service
-
-PostgreSQL health checks
-
-Redis health checks
-
-API health endpoints
-
-Alembic migrations
-
-NLP Pipeline
-
-The current NLP implementation is an extractive summarization pipeline using LexRank.
-
+```text
 Document
    |
    v
@@ -130,9 +124,11 @@ LexRank Summarization
    |
    v
 Structured Result
+```
 
 The current result conceptually contains:
 
+```python
 {
     "summary": str,
     "chunk_count": int,
@@ -140,13 +136,17 @@ The current result conceptually contains:
     "sentence_count": int,
     "character_count": int,
 }
+```
 
-Why Asynchronous Processing?
+---
+
+## Why Asynchronous Processing?
 
 A document-processing workload may involve extraction, cleaning, chunking, and summarization.
 
 A synchronous design would keep the HTTP request open:
 
+```text
 Client
   |
   v
@@ -157,9 +157,11 @@ NLP
   |
   v
 Response
+```
 
 This project instead uses:
 
+```text
 Client
   |
   v
@@ -179,15 +181,19 @@ NLP
   |
   v
 PostgreSQL
+```
 
 This architecture provides a cleaner foundation for longer-running workloads, retries, and future worker scaling.
 
-Reliability and Fault Tolerance
+---
 
-Retry model
+## Reliability and Fault Tolerance
+
+### Retry model
 
 Transient infrastructure failures can be retried:
 
+```text
 Retryable exceptions:
 - ConnectionError
 - TimeoutError
@@ -197,18 +203,22 @@ Maximum retries:
 
 Backoff:
 - 2 ** retries
+```
 
 When retry attempts are exhausted:
 
+```text
 FAILED
 TRANSIENT_ERROR
+```
 
 Non-retryable exceptions are classified directly.
 
-Idempotency
+### Idempotency
 
 Before doing NLP work, the worker checks whether a result already exists for the task.
 
+```text
 Task received
      |
      v
@@ -223,86 +233,79 @@ Existing result?
          |
          v
       Result
+```
 
 This protects against accidentally running the same logical task multiple times.
 
-Error Classification
+---
+
+## Error Classification
 
 The application uses a centralized error taxonomy rather than exposing raw Python exception names.
 
 Current error codes:
 
+```text
 DOCUMENT_NOT_FOUND
 INVALID_DOCUMENT
 PROCESSING_TIMEOUT
 TRANSIENT_ERROR
 NLP_PROCESSING_ERROR
 UNKNOWN_ERROR
+```
 
 This keeps error handling consistent between the worker, persistence layer, and API.
 
-Technology Stack
+---
 
-Backend
+## Technology Stack
 
-Python 3.12
+### Backend
 
-FastAPI
+- Python 3.12
+- FastAPI
+- Uvicorn
+- Pydantic
+- Pydantic Settings
 
-Uvicorn
+### Database
 
-Pydantic
+- PostgreSQL 16
+- SQLAlchemy 2.x
+- Alembic
+- asyncpg
 
-Pydantic Settings
+### Asynchronous Processing
 
-Database
+- Celery 5.6.x
+- Redis 7
 
-PostgreSQL 16
+### NLP
 
-SQLAlchemy 2.x
+- NLTK
+- Sumy
+- LexRank
+- PDF/text extraction dependencies
 
-Alembic
+### Containerization
 
-asyncpg
+- Docker
+- Docker Compose
+- `python:3.12-slim`
 
-Asynchronous Processing
+### Development
 
-Celery 5.6.x
+- Git
+- GitHub
+- PowerShell
+- Docker Desktop
+- WSL2
 
-Redis 7
+---
 
-NLP
+## Repository Structure
 
-NLTK
-
-Sumy
-
-LexRank
-
-PDF/text extraction dependencies
-
-Containerization
-
-Docker
-
-Docker Compose
-
-python:3.12-slim
-
-Development
-
-Git
-
-GitHub
-
-PowerShell
-
-Docker Desktop
-
-WSL2
-
-Repository Structure
-
+```text
 async-nlp-pipeline/
 |
 ├── app/
@@ -359,107 +362,145 @@ async-nlp-pipeline/
 ├── alembic.ini
 ├── requirements.txt
 └── README.md
+```
 
-Docker Compose Stack
+---
+
+## Docker Compose Stack
 
 The complete local stack contains:
 
+```text
 postgres
 redis
 migration
 api
 worker
+```
 
-Start the stack
+### Start the stack
 
+```powershell
 docker compose up -d
+```
 
-Check services
+### Check services
 
+```powershell
 docker compose ps
+```
 
 Expected services:
 
+```text
 nlp-postgres
 nlp-redis
 nlp-migration
 nlp-api
 nlp-worker
+```
 
-API logs
+### API logs
 
+```powershell
 docker compose logs api
+```
 
-Worker logs
+### Worker logs
 
+```powershell
 docker compose logs worker
+```
 
-Database Migrations
+---
+
+## Database Migrations
 
 The project uses Alembic for explicit, reproducible database schema changes.
 
-Run migrations
+### Run migrations
 
+```powershell
 docker exec nlp-api python -m alembic upgrade head
+```
 
-Check migration version
+### Check migration version
 
+```powershell
 docker exec nlp-api python -m alembic current
+```
 
-Health Checks
+---
 
-API
+## Health Checks
 
+### API
+
+```text
 GET /health
+```
 
 Example:
 
+```json
 {
   "status": "healthy"
 }
+```
 
-Database
+### Database
 
+```text
 GET /health/db
+```
 
 Example:
 
+```json
 {
   "database": 1
 }
+```
 
-Core API
+---
 
-Upload a document
+## Core API
 
+### Upload a document
+
+```text
 POST /api/v1/documents
+```
 
 The endpoint:
 
-Validates the uploaded document
-
-Stores the file
-
-Creates a processing task
-
-Enqueues a Celery task
-
-Returns 202 Accepted with a task ID
+1. Validates the uploaded document
+2. Stores the file
+3. Creates a processing task
+4. Enqueues a Celery task
+5. Returns `202 Accepted` with a task ID
 
 Example:
 
+```json
 {
   "task_id": "..."
 }
+```
 
-Retrieve task status
+### Retrieve task status
 
+```text
 GET /api/v1/tasks/{task_id}
+```
 
 Returns the current status and, when processing is complete, the persisted NLP result.
 
-Example End-to-End Workflow
+---
 
+## Example End-to-End Workflow
+
+```text
                     Upload
                        |
                        v
@@ -485,9 +526,11 @@ Example End-to-End Workflow
                        |
                        v
                     SUCCESS
+```
 
 Failure path:
 
+```text
 Processing failure
        |
        v
@@ -502,11 +545,15 @@ FAILED
 error_code
 +
 error_message
+```
 
-Project Status
+---
 
-Completed — Backend MVP
+# Project Status
 
+## Completed — Backend MVP
+
+```text
 ✅ FastAPI API
 ✅ PDF/TXT upload
 ✅ File validation
@@ -524,51 +571,52 @@ Completed — Backend MVP
 ✅ API health checks
 ✅ Database health checks
 ✅ Dockerized multi-service stack
+```
 
 The current GitHub version is intentionally focused on the backend and NLP-processing architecture.
 
-Next Development Phase — NLP Improvements
+---
+
+# Next Development Phase — NLP Improvements
 
 The infrastructure layer is stable enough to support a more capable NLP engine.
 
-The next phase focuses on improving summary quality and making NLP behavior measurable rather than adding another UI layer.
+The next phase focuses on **improving summary quality and making NLP behavior measurable** rather than adding another UI layer.
 
-1. Better preprocessing
+### 1. Better preprocessing
 
 Planned improvements:
 
-whitespace normalization
+- whitespace normalization
+- duplicate-line removal
+- noisy-text filtering
+- improved sentence segmentation
+- document normalization
+- better extraction cleanup
 
-duplicate-line removal
-
-noisy-text filtering
-
-improved sentence segmentation
-
-document normalization
-
-better extraction cleanup
-
-2. Smarter chunking
+### 2. Smarter chunking
 
 Move toward:
 
+```text
 sentence-aware chunking
 +
 document-size-aware chunk sizes
 +
 section-aware boundaries
+```
 
 The goal is to avoid cutting sentences or logical sections in the middle.
 
-3. Semantic sentence representation
+### 3. Semantic sentence representation
 
 Introduce lightweight sentence embeddings so sentence importance can be evaluated using semantic similarity rather than only lexical structure.
 
-4. Hybrid sentence ranking
+### 4. Hybrid sentence ranking
 
 Combine signals such as:
 
+```text
 semantic relevance
 +
 LexRank centrality
@@ -580,15 +628,17 @@ keyword relevance
 section importance
 -
 redundancy
+```
 
-5. Redundancy reduction
+### 5. Redundancy reduction
 
 Add similarity-aware sentence selection so summaries do not repeatedly express the same idea.
 
-6. Adaptive summary length
+### 6. Adaptive summary length
 
 Adjust summarization behavior based on document size:
 
+```text
 Short document
     -> extractive summary
 
@@ -597,11 +647,13 @@ Medium document
 
 Long document
     -> hierarchical summarization
+```
 
-7. Hierarchical summarization
+### 7. Hierarchical summarization
 
 For larger documents:
 
+```text
 Document
    |
    +--> Chunk 1 -> summary
@@ -611,31 +663,29 @@ Document
                     |
                     v
               Global summary
+```
 
-8. NLP evaluation
+### 8. NLP evaluation
 
 The improved pipeline will be compared against the current LexRank baseline using objective measures such as:
 
-ROUGE-1
-
-ROUGE-2
-
-ROUGE-L
-
-compression ratio
-
-redundancy
-
-summary length
-
-processing latency
+- ROUGE-1
+- ROUGE-2
+- ROUGE-L
+- compression ratio
+- redundancy
+- summary length
+- processing latency
 
 The goal is to measure whether changes actually improve the system.
 
-Planned NLP Architecture
+---
+
+# Planned NLP Architecture
 
 The target NLP architecture is:
 
+```text
                     DOCUMENT
                         |
                         v
@@ -683,11 +733,15 @@ The target NLP architecture is:
               |
               v
             Result
+```
 
-Future Extensions
+---
+
+# Future Extensions
 
 Once the NLP core is stronger, the platform can be extended with:
 
+```text
 Document classification
 Information extraction
 Keyword/entity extraction
@@ -697,15 +751,19 @@ Question answering
 RAG integration
 Batch document processing
 NLP quality monitoring
+```
 
 These are future extensions and are not claimed as completed functionality.
 
-Why This Project?
+---
+
+# Why This Project?
 
 The project is designed to demonstrate more than an NLP model.
 
 It combines:
 
+```text
 API engineering
 +
 asynchronous systems
@@ -721,15 +779,19 @@ fault tolerance
 NLP
 +
 containerization
+```
 
 The key engineering challenge is coordinating a long-running NLP workload while keeping task state, failures, retries, and results consistent.
 
-Project Positioning
+---
 
-Async NLP Document Processing Platform is a backend / ML-engineering project demonstrating a production-style architecture for asynchronous document processing.
+## Project Positioning
+
+**Async NLP Document Processing Platform** is a backend / ML-engineering project demonstrating a production-style architecture for asynchronous document processing.
 
 The core technologies and concepts are:
 
+```text
 FastAPI
 Celery
 Redis
@@ -741,5 +803,6 @@ Fault tolerance
 Retry strategy
 Idempotency
 NLP processing
+```
 
 The current implementation establishes the processing infrastructure first. The next major milestone is upgrading the NLP engine and benchmarking the improved pipeline against the current LexRank baseline.
